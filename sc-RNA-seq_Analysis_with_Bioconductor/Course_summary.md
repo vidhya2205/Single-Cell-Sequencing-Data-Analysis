@@ -79,6 +79,6 @@ The fundamental data structure used in the sc- analysis in R is the SingleCellEx
 3.	Information pertaining to the cells such as tissue origin, patient donor, processing batch, disease status, treatment exposure etc.. (colData)
 4.	From the raw data other normalized data can be produced and stored such as normalized counts (log normalized, TPM normalized, dimensionally reduced data etc..).
 
-The demonstration for creation, manipulation of SCE objects in R can be found in [this notebook](add link) and [html file]()
+The demonstration for creation, manipulation of SCE objects in R can be found in [this notebook](Intro_SingleCellExpreiment_class.Rmd) and [html file](https://vidhya2205.github.io/Single-Cell-Sequencing-Data-Analysis/sc-RNA-seq_Analysis_with_Bioconductor/Intro_SingleCellExpreiment_class.nb.html).
 
 
