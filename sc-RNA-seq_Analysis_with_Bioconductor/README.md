@@ -1,11 +1,12 @@
 # Single-Cell RNA-seq Analysis with Bioconductor
 
 This folder contains my notes, key takeaways, and hands-on practice from the [SingleCellExperiment Bioconductor course](https://www.singlecellcourse.org/scrna-seq-analysis-with-bioconductor.html). All credits go to the organizers of the course.
+
 [Github page for more information](https://github.com/cellgeni/scRNA.seq.course)
 
 ---
 
-### [Course Summary & Key Takeaways]()
+### [Course Summary & Key Takeaways](Course_summary.md)
 This provides the key takeaways from the course and covers major aspects involved in single cell RNA-sequencing analysis
 
 ---
