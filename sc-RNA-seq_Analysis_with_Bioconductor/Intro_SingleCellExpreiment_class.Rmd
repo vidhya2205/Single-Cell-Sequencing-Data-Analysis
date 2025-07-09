@@ -21,7 +21,7 @@ Try executing this chunk by clicking the *Run* button within the chunk or by pla
 
 ### 1. Creating a SCE (SingleCellExperiment) object
 
-From the Tung data, for more information go through the [Course summary](link) in this repository or in the [original course](https://www.singlecellcourse.org/), a SCE object is created
+From the Tung data, for more information go through the [Course summary](https://github.com/vidhya2205/Single-Cell-Sequencing-Data-Analysis/blob/main/sc-RNA-seq_Analysis_with_Bioconductor/Course_summary.md) in this repository or in the [original course](https://www.singlecellcourse.org/), a SCE object is created
 ```{r}
 #Execute these from the main folder
 tung_counts <- read.table("data/tung/molecules.txt", sep = "\t")
