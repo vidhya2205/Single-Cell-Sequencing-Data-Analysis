@@ -1,7 +1,7 @@
 # Single-Cell RNA-seq Analysis with Bioconductor
 
-This folder contains my notes, key takeaways, and hands-on practice from the [SingleCellExperiment Bioconductor course](https://www.singlecellcourse.org/scrna-seq-analysis-with-bioconductor.html).All credits go to the organizers of the course.
-[Github page for more information](hemberg-lab/scRNA.seq.course: Analysis of single cell RNA-seq data course)
+This folder contains my notes, key takeaways, and hands-on practice from the [SingleCellExperiment Bioconductor course](https://www.singlecellcourse.org/scrna-seq-analysis-with-bioconductor.html). All credits go to the organizers of the course.
+[Github page for more information](https://github.com/cellgeni/scRNA.seq.course)
 
 ---
 
@@ -16,7 +16,7 @@ Below are the R Markdown files with code and explanations, along with knitted HT
 
 | File                  | Description                                   |
 |-----------------------|-----------------------------------------------|
-| [01_SCE_creation.html](01_SCE_creation.html) | Creating and exploring the SingleCellExperiment object |
+| SCE_Introduction [rmd](Intro_SingleCellExpreiment_class.Rmd), [html](Intro_SingleCellExpreiment_class.nb.html) | Creating and exploring the SingleCellExperiment object |
 
 ---
 
