@@ -1,0 +1,338 @@
+---
+title: "Introduction to SingleCellExperiment class"
+output:
+  html_document:
+    self_contained: true
+    toc: true
+    toc_depth: 2
+    number_sections: true
+knitr:
+  opts_chunk:
+    echo: true       # Show code
+    message: false   # Hide package loading messages
+    warning: false   # Hide warnings
+    results: 'markup'
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+----------------------
+
+### 1. Creating a SCE (SingleCellExperiment) object
+
+From the Tung data, for more information go through the [Course summary](link) in this repository or in the [original course](https://www.singlecellcourse.org/), a SCE object is created
+```{r}
+#Execute these from the main folder
+tung_counts <- read.table("data/tung/molecules.txt", sep = "\t")
+tung_annotation <- read.table("data/tung/annotation.txt", sep = "\t", header = TRUE)
+
+#For instalation
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("SingleCellExperiment")
+# load the library
+library(SingleCellExperiment)
+
+# Creating the SCE data structure with counts matrix and cell information. Note that the data passed to the assay slot has to be a matrix!
+tung <- SingleCellExperiment(
+  assays = list(counts = as.matrix(tung_counts)),
+  colData = tung_annotation
+)
+
+# remove the original tables as we don't need them anymore
+rm(tung_counts, tung_annotation)
+
+tung
+
+# Add log-normalized counts as an assay
+assay(tung, "logcounts") <- log2(counts(tung) + 1)
+```
+----------------------------------------
+
+### 2. A set of functions that can be used on the SCE object
+
+| Function                        | Description                                                                 |
+|--------------------------------|-----------------------------------------------------------------------------|
+| `rowData(sce)`                 | Table of gene metadata.                                                    |
+| `colData(sce)`                 | Table of cell metadata.                                                    |
+| `assay(sce, "counts")`         | The assay named “counts.”                                                 |
+| `reducedDim(sce, "PCA")`       | The reduced dimensionality table named “PCA”                              |
+| `sce$colname`                  | Accesses the column “colname” from colData. Equivalent to `colData(sce)$colname` |
+| `sce[<rows>, <columns>]`       | Subset the SCE object by rows or columns like a matrix or data.frame.     |
+
+
+```{r echo=TRUE}
+#Table of gene metadata.
+rowData(tung)
+
+#	Table of cell metadata.
+colData(tung)
+
+#	The assay named “counts.”
+assay(tung, "counts")[1:5, 1:5]
+
+#to obtain dimensionally reduced data of raw counts we use the runPCA function in scater 
+#PCA - is a statistical procedure to convert a set of observations into a set of linearly uncorrelated variables called principle components to reduce the size of our data and make it easier for analysis.
+#Installation of scater-
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("scater")
+#load the library
+library(scater)
+
+#We get or set dimensionality reduction results (PCA or  UMAP, t-SNE) 
+tung <- runPCA(tung)
+
+#Adds reduced dimensional assay in the SCE class
+reducedDimNames(tung)
+
+#Fisrt few PCA
+reducedDim(tung, "PCA")[1:5,1:5]	
+
+#Shortcut to access the column “well” from colData. This is equivalent to colData(sce)$colname
+head(tung$well)	
+
+#We can use the square brackets to subset the SCE object by rows or columns, similarly to how we subset matrix or data.frame objects
+tung[1:5, 1:5]	
+```
+----------------------------------------------------
+
+Creating SingleCellExperiment objects like this sould work for any use case, as long as we have a matrix of counts that we can read to a file. However, to read the output of the popular tool cellranger (used to quantify 10x Chromium data), there is a dedicated function in the DropletUtils package, which simplifies the process of importing the data. Here is an example usage:
+
+```{r}
+#Installation of DropletUtils-
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("DropletUtils")
+#load the library
+library(DropletUtils)
+
+# importing the raw count data
+sce <- read10xCounts("data/pbmc_1k_raw")
+
+# importing the pre-filtered count data
+sce <- read10xCounts("data/pbmc_1k_filtered")
+
+#To save space
+rm(sce)
+```
+---------------------------
+
+### Exercise 1
+
+
+```{r}
+#1.What are the classes of the “colData” and “assay” slots of our tung object?
+
+class(colData(tung)) #for colData
+class(assay(tung)) #for assay
+
+#2.How many batches and cells per batch are there? Does that number make sense?
+table(tung$batch)
+# there are 9 different batches and 96 cells in each batch (96 wells)
+
+```
+--------------------------------
+
+### 3. Matrix Statistics
+
+Because the main data stored in SingleCellExperiment objects is a matrix, it is useful to cover some functions that calculate summary metrics across rows or columns of a matrix. There are several functions to do this
+
+```{r}
+#For example, to calculate the mean counts per cell (columns) in our dataset:
+
+head(colMeans(counts(tung)))
+
+#We could add this information to our column metadata as a new column, which we could do as:
+
+colData(tung)$mean_counts <- colMeans(counts(tung))
+
+#If we look at the colData slot we can see the new column has been added:
+colData(tung)
+
+#There are several functions that can be used to calculate summary metrics - such as mean, median, variance, etc. - across rows or columns of a matrix (or a sparse matrix).
+# row (feature) summaries
+head(rowSums(counts(tung)))  # sum
+head(rowMeans(counts(tung))) # mean
+head(rowSds(counts(tung)))   # standard deviation
+head(rowVars(counts(tung)))  # variance
+head(rowIQRs(counts(tung))) # inter-quartile range
+head(rowMads(counts(tung)))  # mean absolute deviation
+
+# column (sample) summaries
+head(colSums(counts(tung)))  # sum
+head(colMeans(counts(tung))) # mean
+head(colSds(counts(tung)))   # standard deviation
+head(colVars(counts(tung)))  # variance
+head(colIQRs(counts(tung)))  # inter-quartile range
+head(colMads(counts(tung)))  # mean absolute deviation
+
+```
+-------------------------------------------
+
+### Exercise 2
+
+```{r}
+#1. Add a new column to colData named “total_counts” with the sum of counts in each cell.
+
+colData(tung)$total_counts <- colSums(counts(tung))
+
+#2. Create a new assay called “cpm” (Counts-Per-Million), which contains the result of dividing the counts matrix by the total counts in millions.
+
+assay(tung, "cpm") <- t(t(assay(tung, "counts")) / (colData(tung)$total_counts / 1e6))
+
+#3. How can you access this new assay?
+assay(tung, "cpm")[1:5,1:5]
+
+```
+-----------------------------
+
+# 4. Subsetting SCE Objects
+
+Similarly to the standard data.frame and matrix objects in R, we can use the [ operator to subset our SingleCellExperiment either by rows (genes) or columns (cells). The general syntax is: sce[rows_of_interest, columns_of_interest].
+
+```{r}
+# subset by numeric index
+tung[1:3, ] # the first 3 genes, keep all cells
+tung[, 1:3] # the first 3 cells, keep all genes
+tung[1:3, 1:2] # the first 3 genes and first 2 cells
+
+# subset by name
+tung[c("ENSG00000069712", "ENSG00000237763"), ]
+tung[, c("NA19098.r1.A01", "NA19098.r1.A03")]
+tung[c("ENSG00000069712", "ENSG00000237763"), c("NA19098.r1.A01", "NA19098.r1.A03")]
+
+# calculate the mean counts per gene
+gene_means <- rowMeans(counts(tung))
+
+# print the first 10 values
+gene_means[1:10]
+
+#We can turn this into a TRUE/FALSE vector by using a logical operator:
+gene_means[1:10] > 0.01
+
+#We can use such a logical vector inside [ to filter our data, which will return only the cases where the value is TRUE:
+
+dim(tung)
+dim(tung[gene_means > 0.01, ])
+
+
+#Notice how the resulting SCE object has fewer genes than the original.
+
+#Another common use case is to retain cells with a certain number of genes above a certain threshold of expression. For this question, we need to break the problem into parts. First let’s check in our counts matrix, which genes are expressed above a certain threshold:
+
+# counts of at least 1 (non-zero values)
+sum(counts(tung) > 0)
+
+#We can see that our matrix is now composed of only TRUE/FALSE values. Because TRUE/FALSE are encoded as 1/0, we can use colSums() to calculate the total number of genes above this threshold per cell:
+
+# total number of detected genes per cell
+total_detected_per_cell <- colSums(counts(tung) > 0)
+
+# print the first 10 values
+total_detected_per_cell[1:10]
+
+#Finally, we can use this vector to apply our final condition, for example that we want cells with at least 5000 detected genes:
+
+tung[, total_detected_per_cell > 5000]
+```
+----------------------------
+
+### Excercise 3
+
+```{r}
+
+#1. Create a new object called tung_filtered which contains:
+#cells with at least 25000 total counts
+#genes that have more than 5 counts in at least half of the cells
+#How many cells and genes are you left with?
+tung
+
+tung_filtered<- tung[,colSums(counts(tung))>=25000]
+
+tung_filtered<- tung_filtered[rowSums(counts(tung) > 5)>(ncol(tung)/2), ]
+
+tung_filtered
+```
+-------------------------------------
+
+### 5. Visual Data Exploration
+
+ggplot2() along with the helper packages from scater is used for visualizing certain aspects of the SCE object
+
+
+The basic components of a ggplot are:
+
+A data.frame with data to be plotted
+The variables (columns of the data.frame) that will be mapped to different aesthetics of the graph (e.g. axis, colours, shapes, etc.)
+the geometry that will be drawn on the graph (e.g. points, lines, boxplots, violinplots, etc.)
+This translates into the following basic syntax:
+
+ggplot(data = <data.frame>, 
+       mapping = aes(x = <column of data.frame>, y = <column of data.frame>)) +
+   geom_<type of geometry>()
+
+```{r}
+
+#To visulaize the total counts per cell for each batch we can extract the colData which has this information into a dataframe and visualize it using ggplot2()
+
+cell_info <- as.data.frame(colData(tung))
+
+head(cell_info)
+
+
+# load the library
+library(ggplot2)
+
+ggplot(data = cell_info, aes(x = batch, y = total_counts)) +
+  geom_violin(fill = 'brown') + theme_bw() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+```
+
+If we want to visualize the expression of a single gene in each batch, we have to combine the infromation from the counts assay and colData in the SCE object. In this case we use the helper functions of scater(), mainly ggcells() that let’s us specify all these pieces of information for our plot.
+
+```{r}
+
+#BiocManager::install("scater")
+
+library(scater)
+## Loading required package
+##Same plot as above directly from SCE object using ggcells()
+ggcells(tung, aes(x = batch, y = total_counts)) + 
+  geom_violin(fill = 'orange') + theme_bw() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+
+#If we instead wanted to plot the expression for one of our genes, we could do it as:
+#By default the ggcell() considers the logcounts matrix for expression values hence if we want to use some other assay we have to specify it. 
+#The functionality provided by the scater package goes far beyond plotting, it also includes several functions for quality control.
+
+ggcells(tung, aes(x = batch, y = ENSG00000198938), exprs_values = "logcounts") + 
+  geom_violin(fill = 'coral2') + theme_bw() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+
+```
+----------------------------------------
+
+### Exercise 4
+
+```{r}
+
+#Make a scatterplot showing the relationship between the mean and the variance of the raw counts per cell. (Bonus: also colour the cells by batch.)
+
+#What can you conclude from this data exploration, in terms of selecting highly variable genes for downstream analysis?
+
+#First we add a new column to colData, using the colVars() function to calculate variance of our counts for each cell (columns of the SCE object):
+
+colData(tung)$var_counts <- colVars(counts(tung))
+
+
+#Now we are ready to make our plot, including using the colour aesthetic:
+
+
+ggcells(tung, aes(mean_counts, var_counts)) +
+  geom_point(aes(colour = batch)) + theme_bw()
+
+
+#A positive correlation btw the mean and variance of gene counts is seen and this can be used to choose genes that are highly variable to select certain features for further studies.
+```
