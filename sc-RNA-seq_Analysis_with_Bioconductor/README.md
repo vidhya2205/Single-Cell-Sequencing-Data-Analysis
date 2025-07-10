@@ -17,7 +17,7 @@ Below are the R Markdown files with code and explanations, along with knitted HT
 
 | File                  | Description                                   |
 |-----------------------|-----------------------------------------------|
-| SCE_Introduction [rmd](Intro_SingleCellExpreiment_class.Rmd), [html](https://vidhya2205.github.io/Single-Cell-Sequencing-Data-Analysis/sc-RNA-seq_Analysis_with_Bioconductor/Intro_SingleCellExpreiment_class.nb.html) | Creating and exploring the SingleCellExperiment object |
+| SCE_Introduction [rmd](Intro_SingleCellExpreiment_class.Rmd), [html](https://vidhya2205.github.io/Single-Cell-Sequencing-Data-Analysis/sc-RNA-seq_Analysis_with_Bioconductor/Intro_SingleCellExpreiment_class.html) | Creating and exploring the SingleCellExperiment object |
 
 ---
 
@@ -28,4 +28,4 @@ Below are the R Markdown files with code and explanations, along with knitted HT
 
 ---
 
-*Last updated: 09-07-2025*
+*Last updated: 10-07-2025*
