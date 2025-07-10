@@ -3,9 +3,7 @@ title: "Introduction to SingleCellExperiment class"
 output:
   html_document:
     self_contained: true
-    toc: true
-    toc_depth: 2
-    number_sections: true
+    
 knitr:
   opts_chunk:
     echo: true       # Show code
@@ -14,25 +12,54 @@ knitr:
     results: 'markup'
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+This R Markdown file contains code, output, and narrative text for analysis using the `SingleCellExperiment` class in R.  
 
+ - To view the results directly, open the rendered HTML file (`.html`) in a browser.
+ - To reproduce or modify the analysis, open this `.Rmd` file in [RStudio](https://posit.co/downloads/).
+ - You can knit this file to HTML using the **Knit** button or with `rmarkdown::render("filename.Rmd")`.
+
+This file is part of a reproducible analysis workflow.
+ 
 ----------------------
 
-### 1. Creating a SCE (SingleCellExperiment) object
+Loading required libraries
 
-From the Tung data, for more information go through the [Course summary](https://github.com/vidhya2205/Single-Cell-Sequencing-Data-Analysis/blob/main/sc-RNA-seq_Analysis_with_Bioconductor/Course_summary.md) in this repository or in the [original course](https://www.singlecellcourse.org/), a SCE object is created
-```{r}
-#Execute these from the main folder
-tung_counts <- read.table("data/tung/molecules.txt", sep = "\t")
-tung_annotation <- read.table("data/tung/annotation.txt", sep = "\t", header = TRUE)
-
+```{r load-packages, message=FALSE, warning=FALSE}
 #For instalation
 #if (!require("BiocManager", quietly = TRUE))
 #    install.packages("BiocManager")
 #BiocManager::install("SingleCellExperiment")
 # load the library
 library(SingleCellExperiment)
+
+#Installation of scater-
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("scater")
+#load the library
+library(scater)
+
+#Installation of DropletUtils-
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("DropletUtils")
+#load the library
+library(DropletUtils)
+
+# load the library
+library(ggplot2)
+```
+
+---------------------
+
+### 1. Creating a SCE (SingleCellExperiment) object
+
+From the Tung data, for more information go through the [Course summary](https://github.com/vidhya2205/Single-Cell-Sequencing-Data-Analysis/blob/main/sc-RNA-seq_Analysis_with_Bioconductor/Course_summary.md) in this repository or in the [original course](https://www.singlecellcourse.org/), a SCE object is created
+
+```{r}
+#Execute these from the main folder
+tung_counts <- read.table("data/tung/molecules.txt", sep = "\t")
+tung_annotation <- read.table("data/tung/annotation.txt", sep = "\t", header = TRUE)
 
 # Creating the SCE data structure with counts matrix and cell information. Note that the data passed to the assay slot has to be a matrix!
 tung <- SingleCellExperiment(
@@ -62,7 +89,7 @@ assay(tung, "logcounts") <- log2(counts(tung) + 1)
 | `sce[<rows>, <columns>]`       | Subset the SCE object by rows or columns like a matrix or data.frame.     |
 
 
-```{r echo=TRUE}
+```{r}
 #Table of gene metadata.
 rowData(tung)
 
@@ -74,12 +101,6 @@ assay(tung, "counts")[1:5, 1:5]
 
 #to obtain dimensionally reduced data of raw counts we use the runPCA function in scater 
 #PCA - is a statistical procedure to convert a set of observations into a set of linearly uncorrelated variables called principle components to reduce the size of our data and make it easier for analysis.
-#Installation of scater-
-#if (!require("BiocManager", quietly = TRUE))
-#    install.packages("BiocManager")
-#BiocManager::install("scater")
-#load the library
-library(scater)
 
 #We get or set dimensionality reduction results (PCA or  UMAP, t-SNE) 
 tung <- runPCA(tung)
@@ -101,12 +122,6 @@ tung[1:5, 1:5]
 Creating SingleCellExperiment objects like this sould work for any use case, as long as we have a matrix of counts that we can read to a file. However, to read the output of the popular tool cellranger (used to quantify 10x Chromium data), there is a dedicated function in the DropletUtils package, which simplifies the process of importing the data. Here is an example usage:
 
 ```{r}
-#Installation of DropletUtils-
-#if (!require("BiocManager", quietly = TRUE))
-#    install.packages("BiocManager")
-#BiocManager::install("DropletUtils")
-#load the library
-library(DropletUtils)
 
 # importing the raw count data
 sce <- read10xCounts("data/pbmc_1k_raw")
@@ -281,23 +296,16 @@ cell_info <- as.data.frame(colData(tung))
 
 head(cell_info)
 
-
-# load the library
-library(ggplot2)
-
 ggplot(data = cell_info, aes(x = batch, y = total_counts)) +
   geom_violin(fill = 'brown') + theme_bw() + 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+
 ```
 
 If we want to visualize the expression of a single gene in each batch, we have to combine the infromation from the counts assay and colData in the SCE object. In this case we use the helper functions of scater(), mainly ggcells() that let’s us specify all these pieces of information for our plot.
 
 ```{r}
 
-#BiocManager::install("scater")
-
-library(scater)
-## Loading required package
 ##Same plot as above directly from SCE object using ggcells()
 ggcells(tung, aes(x = batch, y = total_counts)) + 
   geom_violin(fill = 'orange') + theme_bw() + 
