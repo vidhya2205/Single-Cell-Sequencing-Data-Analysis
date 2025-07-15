@@ -1,5 +1,5 @@
 ---
-title: "Basic QC and exploring sc-RNAseq datasets"
+title: "Basic QC"
 output:
   html_document:
     self_contained: true
