@@ -2,6 +2,12 @@
 
 ---
 
+Table of contents
+
+### Table of Contents
+[Introduction](#1.-introduction)
+[BasicQC] (#2.basicQC)
+
 ## 1. Introduction
 
 ### 1.1. Comparison of sc-RNA seq and Bulk RNA-seq
@@ -80,5 +86,32 @@ The fundamental data structure used in the sc- analysis in R is the SingleCellEx
 4.	From the raw data other normalized data can be produced and stored such as normalized counts (log normalized, TPM normalized, dimensionally reduced data etc..).
 
 The demonstration for creation, manipulation of SCE objects in R can be found in [this notebook](Intro_SingleCellExpreiment_class.Rmd) and [html file](https://vidhya2205.github.io/Single-Cell-Sequencing-Data-Analysis/sc-RNA-seq_Analysis_with_Bioconductor/Intro_SingleCellExpreiment_class.html).
+
+## 2. Basic Quality control and Exploring scRNA-seq Datasets
+
+### 2.1. Dataset construction and QC
+
+After the quantification process, we get a gene expression matrix which contains the rows (genes) and columns (cells) and each value representing the count of that gene in that cell. Post this we have to remove the low quality cells (which will create technical noise and misleading results). There are no defined rules for QC and hence filtering out outliers with respect to the rest of the dataset is a way of filtering out low quality cells/genes. 
+
+Pointers to consider while filtering out 
+-	 Cells with low total reads (counts)
+-	Cells with high mitochondrial percentage (they are dead cells)
+-	In the context of the dataset used in the course, there are some ERCC synthetic genes used for quantification and verification, these have to be filtered out.
+
+**Filtering out**
+We can manually filter out cells and genes by setting a threshold based on histograms illustrating the total reads per cell (to remove cells with low total reads). Similarly a histogram depicting the total number of detected genes per cell to filter out those cells. Else we can use automatic filtering that uses the outlier method to filter out low quality cells. 
+
+**Visualizing the parameters together**
+Also, when we are looking at QC’s we can club certain parameters to determine the quality of cells like. Visualizing these parameters helps in this process. Plotting total counts (UMIs) against mitochondrial gene percentages helps identify low-quality cells—those with low RNA content and high mitochondrial expression, typically indicating stressed or dying cells. Another key plot compares total counts to the number of detected genes; high-quality cells show a strong positive correlation, while poor-quality ones fall below this trend, suggesting low gene complexity. Comparing ERCC spike-in percentages with mitochondrial content further reveals cells with minimal endogenous RNA and high technical noise. Cells showing high values for both metrics are usually uninformative and should be excluded.
+
+We can also check for differences between individuals and technical replicates to check for unusuality’s (certain samples or replicates have disproportionately low-quality cells or batch effects). 
+
+**Highly expressed and lowly expressed genes**
+All the genes should have a roughly uniform expression level. If only few genes contribute to more that 50% of the counts then it is not good data and there will be skewedness and we have to filter them or flag them. In sc-RNA-seq data the highly expressed genes are either mitochondrial or ribosomal genes. 
+Similarly, genes that are not expressed in more that 2 cells are not informative and we have to remove them as well.
+
+The demonstration for Basic QC in R can be found in [this notebook](Basic_QC.Rmd) and [html file](https://vidhya2205.github.io/Single-Cell-Sequencing-Data-Analysis/sc-RNA-seq_Analysis_with_Bioconductor/Basic_QC.html).
+
+
 
 
