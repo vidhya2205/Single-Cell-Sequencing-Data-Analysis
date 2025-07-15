@@ -5,8 +5,8 @@
 Table of contents
 
 ### Table of Contents
-[Introduction](#1.-introduction)
-[BasicQC] (#2.basicQC)
+- [Introduction](#1.-introduction)
+- [BasicQC](#2.-basic-quality-control-and-exploring-scrna-seq-datasets)
 
 ## 1. Introduction
 
