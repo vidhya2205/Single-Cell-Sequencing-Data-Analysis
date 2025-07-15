@@ -1,0 +1,254 @@
+---
+title: "Basic QC and exploring sc-RNAseq datasets"
+output:
+  html_document:
+    self_contained: true
+    
+knitr:
+  opts_chunk:
+    echo: true       # Show code
+    message: false   # Hide package loading messages
+    warning: false   # Hide warnings
+    results: 'markup'
+---
+
+This R Markdown file contains code, output, and narrative text for analysis using the `SingleCellExperiment` class in R.  
+
+ - To view the results directly, open the rendered HTML file (`.html`) in a browser.
+ - To reproduce or modify the analysis, open this `.Rmd` file in [RStudio](https://posit.co/downloads/).
+ - You can knit this file to HTML using the **Knit** button or with `rmarkdown::render("filename.Rmd")`.
+
+This file is part of a reproducible analysis workflow.
+ 
+----------------------
+
+Loading required packages
+
+```{r load-packages, message=FALSE, warning=FALSE}
+#BiocManager::install("AnnotationDbi")
+#BiocManager::install("org.Hs.eg.db", "EnsDb.Hsapiens.v86", "SingleCellExperiment","scater")
+library(scater)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(scales)
+```
+
+----------------------
+
+### 1. Tung dataset loading and viewing
+Tung Dataset : 
+
+This is a copy of the original dataset of induced pluripotent stem cells generated from three different individuals (Tung et al. 2017) in Yoav Gilad’s lab at the University of Chicago. The experiments were carried out on the Fluidigm C1 platform and to facilitate the quantification both unique molecular identifiers (UMIs) and ERCC spike-ins were used. Due to rapid increase in droplet-based method use, spike-ins are not widely used anymore; however, they can serve as an informative control for low throughput methods. The data files are located in the tung folder in your working directory. Obtained from the [original course website](https://www.singlecellcourse.org/).
+
+```{r}
+
+#load the matrix
+
+molecules<- read.delim("data/tung/molecules.txt", row.names=1)
+annotation <- read.delim("data/tung/annotation.txt", stringsAsFactors = T)
+
+#Take a quick look at the dataset:
+head(molecules[,1:3])
+head(annotation)
+
+#More information present in the annotation file
+table(annotation$individual) # 3 individuals
+table(annotation$batch) #Experimental conditions
+
+#Create a SCE object umi
+umi <- SingleCellExperiment(assays = list(counts = as.matrix(molecules)), colData = annotation)
+# experssion matrix - counts and col data- annotaion of cells
+umi
+
+```
+
+Filtering out ERCC, and adding annotations to the gene (mitochondrial)
+
+```{r}
+
+#Remove genes which are not expressed in any cell
+keep_feature<- rowSums(counts(umi)>0)>0
+umi<- umi[keep_feature,]
+
+umi # No of features reduced from 19027 to 18726
+
+#ERCC stands for External RNA Controls Consortium. These are synthetic RNA spike-in controls — short RNA molecules of known sequences and concentrations that are artificially added to a sample before sequencing. They're not naturally present in the sample but are included for specific technical reasons.
+altExp(umi,"ERCC") <- umi[grep("^ERCC-",rownames(umi)), ] # Moves ERCC genes into a separate section
+umi <- umi[grep("^ERCC-",rownames(umi),invert = T), ] # Removes ERCC genes from the main data invert = TRUE reverse the logic
+
+#Mapping ENSEMBL IDs to gene symbols. 
+
+gene_names <- mapIds(org.Hs.eg.db, keys=rownames(umi), keytype="ENSEMBL", columns="SYMBOL",column="SYMBOL")
+
+rowData(umi)$SYMBOL <- gene_names
+table(is.na(gene_names)) 
+#From the table command, we can see that most genes were annotated; however, 944 returned “NA.” By default, mapIds returs one symbol per ID; this behaviour can be changed using multiVals argument.
+
+#Let’s remove all genes for which no symbols were found:
+umi <- umi[! is.na(rowData(umi)$SYMBOL),]
+
+#Let’s check if we can find mitochondrial proteins in the newly annotated symbols. - high MT is indication of dead/ dying/ stressed cells
+grep("^MT-",rowData(umi)$SYMBOL,value = T)
+
+#Similar command to find ribosomal proteins (which start with RPL or RPS) works as expected 
+grep("^RP[LS]",rowData(umi)$SYMBOL,value = T)
+
+#Let’s try a different, more detailed database - EnsDb.Hsapiens.v86. Using this resource, we can find 13 protein-coding genes located in the mitochondrion. Few MT genes could be missed in the previous search.
+
+ensdb_genes <- genes(EnsDb.Hsapiens.v86)
+MT_names <- ensdb_genes[seqnames(ensdb_genes) == "MT"]$gene_id #Find all genes that are located on the mitochondrial chromosome (MT). filters the list to only include those mitochondrial genes.
+is_mito <- rownames(umi) %in% MT_names 
+table(is_mito)
+
+```
+----------------------
+
+### 2. Basic QC
+
+The following scater functions allow us to add per-cell and per-gene metrics useful for data set evaluation. Most popular metrics per cell are total number of counts (UMIs), total number of detected genes, total number of mitochondrial counts, percent of mitochondrial counts, etc.
+
+```{r}
+
+#The perCellQCMetrics() function in the scater package calculates stats like total counts, gene counts, and % mitochondrial per cell. This helps us spot bad cells (e.g., with low gene counts or high mitochondrial %). output - sums (total number of counts/reads for that cell; detected - number of genes detected with >0 counts; subsets_Mito_sum- Total counts coming from mitochondrial genes; subsets_Mito_percent -Percent of the cell’s total counts that are mitochondrial)
+umi_cell <- perCellQCMetrics(umi,subsets=list(Mito=is_mito))
+
+#The perFeatureQCMetrics() function in scater package calculates stats like average expression and detection rate per gene. spot low-quality or uninformative genes, like ones detected in only 1 or 2 cells. mean -	Average expression of that gene across all cells; detected =	How many cells had this gene detected; nexprs- How many non-zero values this gene has
+umi_feature <- perFeatureQCMetrics(umi)
+
+head(umi_cell)
+head(umi_feature)
+
+
+#We can add the metrics calculated above to per-cell and per-gene metadata:
+
+#Add per-cell metrics (like total counts, number of genes, mitochondrial percentage) into the metadata of each cell in your umi object.
+umi <- addPerCellQC(umi, subsets=list(Mito=is_mito))
+
+#Adds per-gene metrics (like how many cells expressed each gene) to the feature (gene) metadata.
+umi <- addPerFeatureQC(umi)
+
+```
+---------
+
+#### 2.1. Manual Filtering
+
+Manual filtering can use any cutoff we choose. In order to find a good value, it’s good to look at the distribution:
+
+```{r}
+#Plots a histogram showing how many cells have different library sizes (total reads per cell).
+hist(
+    umi$total,
+    breaks = 100
+)
+abline(v = 25000, col = "red") #  marks 25,000 as a possible cutoff.
+
+#Plots the number of genes detected per cell.
+hist(
+    umi$detected,
+    breaks = 100
+)
+abline(v = 7000, col = "red") #The red line marks 7,000 as a suggested minimum threshold.
+
+#cells that fall far to the left (very low total reads or very few detected genes). These are often: Empty droplets (not real cells; Dead or dying cells ;Technical artifacts.
+
+```
+------------
+
+#### 2.2. Automatic filtering
+
+Sometimes it’s hard to come up with an obvious filtering cutoff. In this case, adaptive threshold can help us identify points that are more than 3 median absolute deviations (MADs) away from the median in any of the variables we use for QC. Be careful to specify if the correct direction of the deviation: indeed, low number of detected genes, but high MT gene percentage, are hallmarks of a low quality cell:
+
+```{r}
+
+#Flags cells with low total counts (library size).
+qc.lib2 <- isOutlier(umi_cell$sum, log=TRUE, type="lower")
+attr(qc.lib2, "thresholds") #  shows the actual cutoffs it used for selecting Outliers
+
+#Flags cells with low number of detected genes.
+qc.nexprs2 <- isOutlier(umi_cell$detected, log=TRUE, type="lower")
+attr(qc.nexprs2, "thresholds")
+
+#Flags cells with too much ERCC expression — which often means technical noise.
+qc.spike2 <- isOutlier(umi_cell$altexps_ERCC_percent, type="higher")
+attr(qc.spike2, "thresholds")
+
+#Flags cells with too much mitochondrial RNA, a sign of dying or stressed cells.
+qc.mito2 <- isOutlier(umi_cell$subsets_Mito_percent, type="higher")
+attr(qc.mito2, "thresholds")
+
+#Discard a cell if it failed any of the QC checks.
+discard2 <- qc.lib2 | qc.nexprs2 | qc.spike2 | qc.mito2
+
+#how many cells were flagged by each rule and in total.
+DataFrame(LibSize=sum(qc.lib2), NExprs=sum(qc.nexprs2), SpikeProp=sum(qc.spike2), MitoProp=sum(qc.mito2), Total=sum(discard2))
+
+
+#All the actions performed above could be done in one scater command, quickPerCellQC:
+#This function automatically flags bad cells using all the same logic as above and tells you why each cell was marked for removal.
+reasons <- quickPerCellQC(umi_cell, sub.fields=c("subsets_Mito_percent", "altexps_ERCC_percent"))
+colSums(as.matrix(reasons))
+
+#metadata column that would keep the information about whether a cell is discarded or not:
+umi$discard <- reasons$discard
+
+```
+
+----------------------------------
+
+#### 2.3. Visualizing the cells that are of low quality based on combined percell metrices
+
+Quality control scatterplots help visualize how different QC metrics relate to each other, with a special focus on detecting low-quality cells (often marked by "discard" == TRUE).
+
+```{r}
+
+# A plot of total number of counts (UMIs) per cell vs % of reads that are mitochondrial (indicative of cell stress or damage), and the discarded cells are colored. Cells with low total counts and high mitochondrial content are often stressed or dying, found in the upper-left corner.
+plotColData(umi, x="sum", y="subsets_Mito_percent", colour_by="discard")
+
+
+#A plot of total UMI counts per cell vs number of detected genes (features), with discarded cells flagged(colored). There should be a positive correlation: more counts → more genes. Hence, cells below the main trendline (low gene detection for their count level) may be problematic. Any horizontal or vertical bands may indicate technical artifacts.
+plotColData(umi, x="sum", y="detected", colour_by="discard")
+
+#We can further split this graph by individual donor/sample, to identify sample-specific QC issues (like one individual might have globally lower counts or higher dropout). 
+plotColData(umi, x="sum", y="detected", colour_by="discard", other_fields = "individual") +
+  facet_wrap(~individual) +
+  scale_x_continuous(labels = unit_format(unit = "k", scale = 1e-3))
+
+##We can also split this graph by technical replicates, to assess batch effects or inconsistent library prep.We can check for replicates with lower counts or poor gene detection, increased number of discarded cells in one replicate may need investigation.
+plotColData(umi, x="sum", y="detected", colour_by="discard", other_fields = "replicate") +
+  facet_wrap(~replicate) +
+  scale_x_continuous(labels = unit_format(unit = "k", scale = 1e-3))
+
+
+# A plot of % of reads from ERCC spike-ins (external RNA controls) vs % mitochondrial reads, with discarded cells flagged(colored). High ERCC percentages can indicate low endogenous RNA content, suggesting poor quality. Hence, high mito percentages + high ERCC = very poor quality cells.Clusters of points with high values in both axes, found in the upper right quadrant are expected.
+plotColData(umi, x="altexps_ERCC_percent", y="subsets_Mito_percent", colour_by="discard")
+
+```
+----------------------
+
+#### 2.4. Highly and lowly expressed genes 
+
+A small number of highly expressed genes can skew normalization and downstream analysis, so it's important to visualize and be aware of them. We have to check if a few genes contribute a large proportion of total expression. Or if mitochondrial or other technical genes dominate the dataset (typical for sc-RNA-seq datasets). 
+
+To improve data quality, genes detected in fewer than 2 cells (with expression > 1) are filtered out, removing weakly expressed genes. This focuses the analysis on genes reliably detected across cells.
+
+```{r}
+
+#This plots the top 50 genes by total expression (sum across all cells). y axis - Cumulative percentage of total expression; X-axis: Ranked genes (by expression).
+#A steep curve suggests dominance by a few genes (e.g., mitochondrial, ribosomal). Ideally, expression is more evenly distributed. If very few genes contribute >50% of the reads, consider filtering or flagging them.
+plotHighestExprs(umi, exprs_values = "counts", 
+                 feature_names_to_plot = "SYMBOL", colour_cells_by="detected")
+
+#Select the cells express each gene above a threshold (here, >1).
+keep_feature <- nexprs(umi,byrow = TRUE,detection_limit = 1) >= 2
+#Mark genes to discard in the object metadata.
+rowData(umi)$discard <- ! keep_feature
+table(rowData(umi)$discard)
+
+#Create a new assay with log2-transformed counts (adding 1 as a pseudocount) to stabilize variance for downstream analyses.
+assay(umi, "logcounts_raw") <- log2(counts(umi) + 1)
+
+#Save the updated data object for later use.
+saveRDS(umi, file = "data/tung/umi.rds")
+```
