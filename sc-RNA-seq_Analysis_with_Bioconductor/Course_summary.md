@@ -5,6 +5,14 @@
 ### Table of Contents
 - [Introduction](#1-introduction)
 - [Basic Quality Control and Exploring scRNA-seq Datasets](#2-basic-quality-control-and-exploring-scrna-seq-datasets)
+- [Data Visualization and Dimensional Reduction](#3.-Data-Visualization-and-Dimensional-Reduction)
+
+[Introduction](#1.-introduction)
+
+[BasicQC](#2.-basicQC)
+
+[Data Visualization and Dimensional Reduction](##3.-Data-Visualization-and-Dimensional-Reduction)
+>>>>>>> Stashed changes
 
 ## 1. Introduction
 
@@ -109,6 +117,22 @@ All the genes should have a roughly uniform expression level. If only few genes 
 Similarly, genes that are not expressed in more that 2 cells are not informative and we have to remove them as well.
 
 The demonstration for Basic QC in R can be found in [this notebook](Basic_QC.Rmd) and [html file](https://vidhya2205.github.io/Single-Cell-Sequencing-Data-Analysis/sc-RNA-seq_Analysis_with_Bioconductor/Basic_QC.html).
+
+## 3. Data Visualization and Dimensional Reduction
+
+### 3.1. PCA
+
+The easiest way to visualize and note key differences in a PCA plot. PCA is a statistical method to shrink the complex data to a smaller analyzed data maintaining the key features of the data. Running PCA on a non- normalized data is not beneficial as it does not properly group cells by individuals/ replicates because some cells have more RNA or expressed genes which is not indicative of true biological differences. Hence, log transformed data counts shrinks the extreme values and balances the expression differences. Now, running a PCA will reveal a true structure. However, it is important to note that ** this does not solve the issue with uneven sequencing depths and hence we have to consider library-size normalization (cpm/tpm etc..). Quality control filtration also aids the PCA to group cells better without the influence of outliers.
+
+### 3.2. tSNE plot
+
+tSNE (t-Distributed Stochastic Neighbor Embedding) is a non-linear method used to visually cluster similar cells by reducing complex high-dimensional gene expression data into 2 dimensions. It conserves the structure of the data, by placing similar cells close by and dissimilar cells far apart in the 2D plot.
+Interpreting PCA and tSNE plots is often challenging and due to their stochastic and non-linear nature, they are less intuitive.  tSNE requires you to provide a value of perplexity which reflects the number of neighbours used to build the nearest-neighbour network; a high value creates a dense network which clumps cells together while a low value makes the network more sparse allowing groups of cells to separate from each other. scater uses a default perplexity of the total number of cells divided by five (rounded down). 
+
+The t-SNE plot can provide misleading information if the settings are not proper. PCA-based initialization, using recommended perplexity values (often dataset-dependent) significantly improves consistency across runs — a major step toward reproducible t‑SNE maps.
+Though, tSNE is great for visualization, but not for formal interpretation or clustering. Its randomness and non-linear math make it hard to interpret distances globally. For downstream analysis, other methods (e.g., UMAP, clustering, differential expression) are much useful.
+
+The demonstration for data visualization and dimensional reduction in R can be found in [this notebook](Data_Visualization_and_Dimensional_Reduction.Rmd) and [html file](https://vidhya2205.github.io/Single-Cell-Sequencing-Data-Analysis/sc-RNA-seq_Analysis_with_Bioconductor/Data_Visualization_and_Dimensional_Reduction.html).
 
 
 
