@@ -1,0 +1,195 @@
+---
+title: "Data Visualization and Dimensional reduction"
+output:
+  html_document:
+    self_contained: true
+    
+knitr:
+  opts_chunk:
+    echo: true       # Show code
+    message: false   # Hide package loading messages
+    warning: false   # Hide warnings
+    results: 'markup'
+---
+
+This R Markdown file contains code, output, and narrative text for analysis using the `SingleCellExperiment` class in R.  
+
+ - To view the results directly, open the rendered HTML file (`.html`) in a browser.
+ - To reproduce or modify the analysis, open this `.Rmd` file in [RStudio](https://posit.co/downloads/).
+ - You can knit this file to HTML using the **Knit** button or with `rmarkdown::render("filename.Rmd")`.
+
+This file is part of a reproducible analysis workflow.
+ 
+----------------------
+
+Loading required packages
+
+```{r load-packages, message=FALSE, warning=FALSE}
+#BiocManager::install("AnnotationDbi")
+#BiocManager::install("org.Hs.eg.db", "EnsDb.Hsapiens.v86", "SingleCellExperiment","scater")
+library(scater)
+library(SingleCellExperiment)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+library(scales)
+
+#load the created umi data
+umi<-readRDS("Data/tung/umi.rds")
+
+```
+
+----------------------
+
+### 1. Introduction
+
+This section provides different ways of visualizing the data to allow you to asses what happened to the expression matrix after the quality control step. scater package provides several very useful functions to simplify visualisation. 
+
+One important aspect of single-cell RNA-seq is to control for batch effects. **Batch effects** are technical artefacts that are added to the samples during handling. For example, if two sets of samples were prepared in different labs or even on different days in the same lab, then we may observe greater similarities between the samples that were handled together. In the worst case scenario, batch effects may be mistaken for true biological variation. The Tung data allows us to explore these issues in a controlled manner since some of the salient aspects of how the samples were handled have been recorded. Ideally, we expect to see batches from the same individual grouping together and distinct groups corresponding to each individual.
+
+```{r}
+#Creating another SingleCellExperiment object, umi.qc, in which remove unnecessary poorly expressed genes and low quality cells
+umi.qc <- umi[! rowData(umi)$discard,! colData(umi)$discard]
+```
+
+----------------------------
+
+### 2. PCA plot
+
+When we look at single-cell RNA-seq data, each cell has thousands of gene measurements, which is difficult to analyse. Principal Component Analysis (PCA) helps simplify this by:
+
+- Reducing the number of dimensions (genes) while keeping most of the important information.
+
+- Showing us the main patterns or differences between the cells in just a few summary "directions" called principal components (PCs).
+
+#### 2.1 PCA before QC
+Running a PCA before and after log normalization impacts its ability to group cells via individuals and replicates. Hence along with the log normalization we have to consider library size normalization (sequencing depth such as cpm/tpm etc..).
+
+
+```{r}
+
+# PCA on Raw Counts (Before Normalization/QC), runs PCA using raw count data (not transformed or normalized). However, cells with high RNA content or highly expressed genes dominate the result — not good for interpretation
+
+umi <- runPCA(umi, exprs_values = "counts")
+dim(reducedDim(umi, "PCA"))
+#PCA has created a matrix with 864 cells and 50 principal components. Each PC captures a direction of variation; PC1 explains the most.
+
+#Plots the PCA result: The color shows different sequencing batches, dot size represents how many genes were detected per cell, each point’s shape reflects the individual/sample.
+
+#Clustering or separation of cells by batch or individual should happen. With raw counts, this usually doesn’t happen — instead, sequencing depth dominates.
+
+plotPCA(umi, colour_by = "batch", size_by = "detected", shape_by = "individual")
+
+
+#PCA After Log-Transformation
+
+#Re-run PCA, now using log-transformed counts (log2(counts + 1)). This makes high values less extreme, improving visibility of true biological differences.
+
+umi <- runPCA(umi, exprs_values = "logcounts_raw")
+
+dim(reducedDim(umi, "PCA")) #reducedDim object in umi is overwritten.
+## PCA was recalculated — same number of cells, new PCs.
+
+#A similar PCA plot, but now PCA is more meaningful.Clearer grouping by batch or sample is seen and hence log transformation has helped!
+plotPCA(umi, colour_by = "batch", size_by = "detected", shape_by = "individual")
+
+#However, log normalization is not enough we have to use library-size normalization as well for downstream analysis.
+
+```
+
+
+#### 2.3. PCA After QC Filtering
+   
+Similary PCA plot before and after QC also produces different plots mainly showcasing the ability of the outlier cells and genes impacting true biological signals in the data. Hence a PCA plot post QC will provide a clearer distiction between cells and group them better.
+
+```{r}
+
+#Runs PCA again, this time on the QC-filtered dataset (umi.qc). Poor-quality cells removed.
+umi.qc <- runPCA(umi.qc, exprs_values = "logcounts_raw")
+
+
+dim(reducedDim(umi.qc, "PCA"))
+#Fewer cells (670 vs 864), because bad ones were filtered out.
+
+
+#Visualize the PCA again, Outlier groups (like problematic replicates) disappear.Groupings by batch/individual become cleaner.
+plotPCA(umi.qc, colour_by = "batch", size_by = "detected", shape_by = "individual")
+
+#It can be observed that the post QC, the NA19098.r2 cells that were seen as outliers in the log-transformed befor QC PCA are absent dure to filteration.
+
+table(umi$individual)
+
+```
+
+----------------
+
+#### Exercise 1
+By default only the top 500 most variable genes are used by scater to calculate the PCA. This can be adjusted by changing the ntop argument.
+
+Exercise 1 How do the PCA plots change if when all 14,154 genes are used? Or when only top 50 genes are used? Why does the fraction of variance accounted for by the first PC change so dramatically?
+
+Hint Use ntop argument of the plotPCA function.
+
+```{r}
+#All genes
+umi.qc <- runPCA(umi.qc, exprs_values = "logcounts_raw")
+plotPCA(umi.qc, colour_by = "batch", size_by = "detected", shape_by = "individual")
+
+#Top 50 genes
+umi.qc <- runPCA(umi.qc, exprs_values = "logcounts_raw",ntop = 50)
+plotPCA(umi.qc, colour_by = "batch", size_by = "detected", shape_by = "individual")
+
+#Answer, using top 50 genes provides a more distict plot segregating the cells by individuals and  batches as well.
+```
+
+------------------
+
+# 3. t-SNE Plot
+
+tSNE (t-Distributed Stochastic Neighbor Embedding) is a non-linear method used to visually cluster similar cells by reducing complex high-dimensional gene expression data into 2 dimensions.It place similar cells close together, and dissimilar cells far apart on a 2D plot. Unlike PCA, which is linear and easier to interpret, tSNE preserves local structure (relationships between nearby points).But it’s stochastic — running it twice on the same data can give different plots unless a seed is set.
+
+```{r}
+
+#Before QC:
+
+#Ensures reproducibility by fixing randomness.
+set.seed(1234567)
+
+#Run the tSNE algorithm using log-transformed raw counts. exprs_values = "logcounts_raw": Uses the log-transformed (but not normalized) expression matrix. perplexity = 130: Controls how many neighboring cells influence the tSNE layout. High = more connected structure, low = more separated clusters.
+umi <- runTSNE(umi, exprs_values = "logcounts_raw", perplexity = 130)
+
+#Plots the result, Color: Sequencing batch,size: Number of genes detected, shape: Biological individual.Before QC, tSNE may show batch-driven clusters or outliers, not true biology.
+
+plotTSNE(umi, colour_by = "batch", size_by = "detected", shape_by = "individual")
+
+
+#After QC
+
+set.seed(1234567)
+
+#Same steps, but using QC-filtered cells (umi.qc). Improved visualization: cells from problematic batches or replicates no longer appear as clear outliers (e.g., NA19098.r2 is fixed). You can now see better biological structure with less noise.
+umi.qc <- runTSNE(umi.qc, exprs_values = "logcounts_raw", perplexity = 130)
+plotTSNE(umi.qc, colour_by = "batch", size_by = "detected", shape_by = "individual")
+
+```
+
+---------------------------
+
+#### Exercise 2 - Perplexity
+
+Exercise 2 How do the tSNE plots change when a perplexity of 10 or 200 is used? How does the choice of perplexity affect the interpretation of the results?
+
+```{r}
+
+#Perplexity of 10
+umi.qc <- runTSNE(umi.qc, exprs_values = "logcounts_raw", perplexity = 10)
+plotTSNE(umi.qc, colour_by = "batch", size_by = "detected", shape_by = "individual")
+#May show more scattered, tight clusters. Exaggerates small differences — useful for identifying rare cell types, but may split natural groups.
+
+#Perplexity of 200
+umi.qc <- runTSNE(umi.qc, exprs_values = "logcounts_raw", perplexity = 200)
+plotTSNE(umi.qc, colour_by = "batch", size_by = "detected", shape_by = "individual")
+#Produces smoother plots with more blending. Merging distinct subgroups, hiding detail.
+
+
+```
