@@ -3,16 +3,10 @@
 ---
 
 ### Table of Contents
+
 - [Introduction](#1-introduction)
 - [Basic Quality Control and Exploring scRNA-seq Datasets](#2-basic-quality-control-and-exploring-scrna-seq-datasets)
-- [Data Visualization and Dimensional Reduction](#3.-Data-Visualization-and-Dimensional-Reduction)
-
-[Introduction](#1.-introduction)
-
-[BasicQC](#2.-basicQC)
-
-[Data Visualization and Dimensional Reduction](##3.-Data-Visualization-and-Dimensional-Reduction)
->>>>>>> Stashed changes
+- [Data Visualization and Dimensional Reduction](#3-data-visualization-and-dimensional-reduction)
 
 ## 1. Introduction
 
